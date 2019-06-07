@@ -7,22 +7,15 @@
  * element that contains the map. */
 #map {
   height: 50%;
-  border:#9E9E9E solid 1px;
-  background-image: url("../images/globe.png");
-  background-position: center;
-  background-repeat: no-repeat;
-  z-index: -1;
 }
+
 /* Optional: Makes the sample page fill the window. */
 html, body {
   height: 100%;
   margin: 0;
   padding: 0;
 }
-/*body {
-  background-image: url("../images/cell-tower.jpg");
-  background-size: cover;
-}*/
+
 /* Change btn to fill row */
 .col.s12 > .btn-large {
   width: 100%;
@@ -47,7 +40,7 @@ html, body {
     transition: opacity .2s;
     z-index: -1;
 }
-
+/*set displays to match the label color*/
 .displayStats {
   color: #9E9E9E;
 }
