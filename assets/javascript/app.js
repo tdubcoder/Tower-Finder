@@ -1,69 +1,175 @@
-//firebase
+// Initialize firebase
 var config = {
-  apiKey: "AIzaSyAMPjG7vghDD6o2-pwFbiQVAu1gK4T1guQ",
-  authDomain: "tower-finder-project1.firebaseapp.com",
-  databaseURL: "https://tower-finder-project1.firebaseio.com/",
-  storageBucket: "gs://tower-finder-project1.appspot.com/"
+  apiKey: " AIzaSyDOUxD0QFTDg2BKTNPA10x1-fhhidwDD-I",
+  authDomain: "tower-finder-7c3ef.firebaseapp.com",
+  databaseURL: "https://tower-finder-7c3ef.firebaseio.com/",
+  storageBucket: "gs://tower-finder-7c3ef.appspot.com/"
 };
+
 firebase.initializeApp(config);
 
-//variables
-var database = firebase.database();
-var map;
-var initCoord = { lat: 33.9745, lng: -117.3374 };
 
-//Google map api function
+// ========================
+// Global Variables
+// ========================
+
+// Create a variable to reference the database.
+var database = firebase.database();
+var towerCoord = { lat: 33.9745, lng: -117.3374 };
+var map;
+var userCity;
+var towerCity;
+var iconBase = 'assets/images/tower-icon.png';
+var queryURL = "http://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/reverseGeocode?f=json&langCode=EN&location=-117.3374,33.9745";
+
+
+// ========================
+// Functions
+// ========================
+
+// Initializes map
 function initMap() {
   map = new google.maps.Map(document.getElementById('map'), {
     center: { lat: 33, lng: -117 },
-    zoom: 5  
+    zoom: 8
   });
-  //call marker
-  marker();
-  
-  //console log data from firebase 
-  database.ref().once('value', function(data){
-    console.log(data.val());
-   });
-  // for(var towerId in database.features){
-  //   console.log("working");
-  //   //display towerId.geometry.coordinates[0] & towerId.geometry.coordinates[1]
-  //   console.log(towerId.geometry.coordinates[0] & towerId.geometry.coordinates[1]);
-  //   console.log(childSnapshot.val());
-  //  }
 };
 
-//google marker function
-function marker(){
-  var iconBase = 'assets/images/tower-icon.png';
-  var marker = new google.maps.Marker({
-    position: initCoord,
-    icon: iconBase,
-    map: map
+// Ajax call to ArcGIS to get reverse geocode of coordinates
+function getCity() {
+  $.ajax({
+    url: queryURL,
+    method: "GET",
+  }).then(function (response) {
+    console.log(response);
+
+    // Sets userCity equal to the city containing coodinates
+    userCity = response.address.City;
+    console.log("User City: ", userCity);
+
+    // Calls makeTowers
+    makeTowers();
   });
 }
-//display status
-function displayStatus(){
-  var displayStats = $(".displayStats").show();
+
+// Creates cell towers markers in maps in user coordinates
+function makeTowers() {
+
+  // Goes into our database
+  database.ref().on("value", function (data) {
+
+    // Creates var tower for arrays in database
+    for (tower in data.val()) {
+
+      // Saves city loc in var
+      towerCity = data.val()[tower].LOCCITY;
+
+      // If user city equals the cell tower city
+      if (towerCity === userCity) {
+        // Get coordinates for new cell tower
+        towerCoord = { lat: data.val()[tower].LAT_DMS, lng: data.val()[tower].LON_DMS };
+
+        // Creates new google map marker
+        var marker = new google.maps.Marker({
+          position: towerCoord,
+          icon: iconBase,
+          map: map
+        });
+
+        // Saving cell tower data into variables
+        var tOwner = data.val()[tower].LICENSEE;
+        var coords = data.val()[tower].LAT_DMS + ", " + data.val()[tower].LON_DMS;
+        var city = data.val()[tower].LOCCITY;
+        var state = data.val()[tower].LOCSTATE;
+        var height = data.val()[tower].SUPSTRUC;
+
+        // Create a new row
+        var newRow = $("<tr>").append(
+          $("<td>").text(tOwner),
+          $("<td>").text(coords),
+          $("<td>").text(city),
+          $("<td>").text(state),
+          $("<td>").text(height)
+        );
+
+        // Append the row to table
+        $("#tower-table > tbody").append(newRow);
+      }
+    }
+  });
 }
-displayStatus();
 
-//getting input value of text box
-var submitButton = $("#submitButton");
+// Checks if user input is a valid lat and long range
+function isValid(lat, long) {
 
-//when user clicks submits show all towers
-submitButton.on("click", function (event) {
-  event.preventDefault();
+  // Checks latitude range
+  if (lat < -90 || lat > 90) {
+    // maybe add a modal here?
+    return false;
+  }
 
-  var userLat = $("#latInput").val().trim();
-  var userLong = $("#longInput").val().trim();
-  userLat = parseInt(userLat);
-  userLong = parseInt(userLong);
-  
-  //call initMap when clicked
-  initMap();
+  // Checks longitude range
+  else if (long < -180 || long > 180) {
+    // maybe add a modal here?
+    return false;
+  }
+
+  // Checks if input is empty
+  else if (lat == "" || long == "") {
+    // maybe add a modal here?
+    return false;
+  }
+  return true;
+}
+
+
+// ========================
+// Main 
+// ========================
+
+// Shorthand document ready
+$(function () {
+
+  // Get user submit and runs core logic
+  $("#submitButton").on("click", function (event) {
+
+    // Prevents default form actions
+    event.preventDefault();
+
+    // Refresh map
+    initMap();
+
+    // Empty table
+    $("tbody").empty();
+
+    // Get user coordinates
+    var userLat = parseFloat($("#latInput").val());
+    var userLong = parseFloat($("#longInput").val());
+
+    console.log(userLat, userLong);
+
+    // Error Checking
+    if (isValid) {
+      // Url for arcgis api call
+      queryURL = "http://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/reverseGeocode?f=json&langCode=EN&location=" + userLong + "," + userLat;
+
+      console.log(queryURL);
+
+      // Gets the city of user inputed coordinates
+      getCity();
+
+      // Centers map
+      map.setCenter({ lat: userLat, lng: userLong });
+
+      // Show map and table
+      $("#map").removeClass("hide");
+      $(".row").removeClass("hide");
+    }
 
   });
 
-// Populate the table with api response from fcc and 
-// Create icons for all nearby towers within a 1 mile radius
+});
+
+
+
+
